@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full overflow-hidden">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RYIC AI — 4B Korean Native Reasoning Engine</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- GSAP for Card Stacking Snap Animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <!-- Three.js for 3D Mesh Interactive Visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Google Fonts: Ultra-Thin Light Typography & Noto Sans KR -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100;200;300;400;500;600&family=Outfit:wght@100;200;300;400;500;600&family=JetBrains+Mono:wght@200;300;400;500&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'Noto Sans KR', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#fafafa',
+                            100: '#f4f4f5',
+                            200: '#e4e4e7',
+                            300: '#d4d4d8',
+                            400: '#a1a1aa',
+                            500: '#71717a',
+                            600: '#52525b',
+                            700: '#3f3f46',
+                            800: '#27272a',
+                            900: '#18181b',
+                            950: '#09090b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #09090b;
+            color: #09090b;
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            touch-action: none;
+        }
+
+        /* Custom Cursor Follower */
+        #custom-cursor {
+            pointer-events: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 1px solid rgba(9, 9, 11, 0.25);
+            background: rgba(9, 9, 11, 0.02);
+            backdrop-filter: blur(2px);
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s ease-out;
+        }
+
+        #custom-cursor-dot {
+            pointer-events: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #09090b;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Card Stacking Stage Container */
+        #card-stage {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #09090b;
+        }
+
+        .stack-card {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1.5rem;
+            box-sizing: border-box;
+            background-color: #fafafa;
+            border-radius: 0px;
+            box-shadow: 0 -25px 50px -12px rgba(0, 0, 0, 0.12);
+            will-change: transform, opacity, filter;
+            transform-origin: center center;
+            overflow: hidden;
+        }
+
+        /* Dark themed final card style override */
+        .stack-card.dark-card {
+            background-color: #09090b;
+            color: #ffffff;
+        }
+
+        /* Glassmorphism Refined Cards */
+        .glass-card-3d {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(9, 9, 11, 0.07);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.03);
+            transition: border-color 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        .dark-card .glass-card-3d {
+            background: rgba(24, 24, 27, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
+        }
+
+        .text-shimmer {
+            background: linear-gradient(90deg, #09090b 0%, #71717a 50%, #09090b 100%);
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: shine 6s linear infinite;
+        }
+
+        @keyframes shine {
+            to { background-position: 200% center; }
+        }
+
+        /* Side Navigation Dots */
+        .nav-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 9999px;
+            border: 1px solid rgba(9, 9, 11, 0.3);
+            background: transparent;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+        }
+
+        .nav-dot.active {
+            height: 24px;
+            background: #09090b;
+            border-color: #09090b;
+        }
+
+        .dark-active .nav-dot {
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        .dark-active .nav-dot.active {
+            background: #ffffff;
+            border-color: #ffffff;
+        }
+
+        /* Terminal Prompt Custom Scrollbar */
+        .term-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .term-scroll::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.02);
+        }
+        .term-scroll::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.15);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="relative">
+
+    <!-- Custom Cursor Elements -->
+    <div id="custom-cursor"></div>
+    <div id="custom-cursor-dot"></div>
+
+    <!-- Navigation Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 py-6 px-8 transition-colors duration-500" id="main-header">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <a href="#" onclick="navigateToCard(0); return false;" class="flex items-center gap-2.5 text-brand-950 transition-colors duration-500 magnetic-element" id="header-logo">
+                <span class="w-2.5 h-2.5 rounded-full bg-brand-950 animate-pulse" id="header-dot"></span>
+                <span class="font-extralight text-2xl tracking-tight font-sans">ryic <span class="font-normal text-brand-900">4b</span></span>
+            </a>
+
+            <nav class="hidden md:flex items-center gap-8 text-xs font-light text-brand-600 transition-colors duration-500" id="header-nav">
+                <button onclick="navigateToCard(0)" class="hover:text-brand-950 transition-colors">01. RYIC 4B 개요</button>
+                <button onclick="navigateToCard(1)" class="hover:text-brand-950 transition-colors">02. 한국어 추론 엔진</button>
+                <button onclick="navigateToCard(2)" class="hover:text-brand-950 transition-colors">03. 핵심 스펙</button>
+                <button onclick="navigateToCard(3)" class="hover:text-brand-950 transition-colors">04. PowerShell 터미널</button>
+                <button onclick="navigateToCard(4)" class="hover:text-brand-950 transition-colors">05. 빠른 실행</button>
+            </nav>
+
+            <button onclick="navigateToCard(3)" id="header-btn" class="magnetic-element px-5 py-2.5 rounded-full border border-brand-200 text-brand-950 text-xs font-light hover:bg-brand-950 hover:text-white transition-all bg-white/80 backdrop-blur-md shadow-sm">
+                PowerShell 실행하기
+            </button>
+        </div>
+    </header>
+
+    <!-- Side Floating Section Indicators -->
+    <div class="fixed right-6 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-3" id="nav-dot-container">
+        <button onclick="navigateToCard(0)" class="nav-dot active" title="01. 개요" id="dot-0"></button>
+        <button onclick="navigateToCard(1)" class="nav-dot" title="02. 한국어 추론" id="dot-1"></button>
+        <button onclick="navigateToCard(2)" class="nav-dot" title="03. 핵심 스펙" id="dot-2"></button>
+        <button onclick="navigateToCard(3)" class="nav-dot" title="04. PowerShell" id="dot-3"></button>
+        <button onclick="navigateToCard(4)" class="nav-dot" title="05. 설치 및 배포" id="dot-4"></button>
+    </div>
+
+    <!-- MAIN CARD STACKING STAGE -->
+    <div id="card-stage">
+
+        <!-- CARD 1: HERO OVERVIEW -->
+        <section class="stack-card" id="card-0" style="z-index: 10;">
+            <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center w-full z-10 pt-12">
+                <div class="lg:col-span-7 space-y-8">
+                    <div class="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-brand-200 bg-white/80 backdrop-blur-sm text-[11px] font-light text-brand-700 shadow-sm animate-element">
+                        <span class="flex h-2 w-2 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span class="font-mono text-brand-900 font-medium">4B Parameters</span>
+                        <span class="text-brand-300">•</span>
+                        <span>PowerShell 네이티브 지원</span>
+                    </div>
+
+                    <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extralight tracking-tight text-brand-950 leading-[1.1] animate-element">
+                        초경량 4B,<br />
+                        <span class="text-shimmer font-normal">압도적 한국어</span><br />
+                        논리 추론 모델.
+                    </h1>
+
+                    <p class="text-base sm:text-lg font-light text-brand-500 max-w-xl leading-relaxed animate-element">
+                        RYIC AI는 40억 파라미터(4B) 크기에도 불구하고 뛰어난 한국어 이해력과 연쇄적 논리 추론(Reasoning) 능력을 자랑합니다. 별도 설치 없이 PowerShell에서 즉시 작동합니다.
+                    </p>
+
+                    <div class="flex items-center gap-4 pt-2 animate-element">
+                        <button onclick="navigateToCard(1)" class="magnetic-element px-8 py-4 rounded-full bg-brand-950 text-white font-light text-xs tracking-widest uppercase hover:bg-brand-800 transition-all shadow-md flex items-center gap-3">
+                            <span>추론 기능 체험하기</span>
+                            <i data-lucide="arrow-down" class="w-4 h-4 animate-bounce"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3D Orb Container -->
+                <div class="lg:col-span-5 h-[380px] w-full relative flex items-center justify-center animate-element">
+                    <div id="three-orb-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CARD 2: KOREAN REASONING ENGINE -->
+        <section class="stack-card" id="card-1" style="z-index: 20;">
+            <div class="max-w-6xl mx-auto w-full z-10">
+                <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6 animate-element">
+                    <div>
+                        <span class="text-[11px] font-light text-brand-400 uppercase tracking-widest mb-1 block">Tier 02</span>
+                        <h2 class="text-3xl sm:text-5xl font-extralight text-brand-950 tracking-tight">한국어 메인 & 고성능 추론 (Reasoning)</h2>
+                    </div>
+                    <button onclick="triggerNodePulse()" class="magnetic-element px-6 py-3 rounded-full border border-brand-200 text-xs font-light text-brand-950 bg-white hover:bg-brand-950 hover:text-white transition-all shadow-sm flex items-center gap-2">
+                        <i data-lucide="cpu" class="w-4 h-4"></i>
+                        <span>시냅스 신경망 자극</span>
+                    </button>
+                </div>
+
+                <div class="glass-card-3d rounded-2xl p-6 relative overflow-hidden h-[450px] bg-white animate-element grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div class="lg:col-span-7 h-full relative">
+                        <canvas id="node-canvas" class="w-full h-full block cursor-crosshair rounded-xl border border-brand-100"></canvas>
+                        <div class="absolute bottom-4 left-4 pointer-events-none flex items-center gap-3 text-xs font-mono text-brand-500 bg-white/90 p-3 rounded-xl border border-brand-100 backdrop-blur-sm shadow-sm">
+                            <div>토큰 응답속도: <span class="text-emerald-600 font-medium">142 tok/s</span></div>
+                            <div>•</div>
+                            <div>한국어 어휘집: <span class="text-brand-950 font-medium">128K Vocab</span></div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-5 flex flex-col justify-between space-y-4 py-2">
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-light text-brand-950 flex items-center gap-2">
+                                <i data-lucide="brain-circuit" class="w-5 h-5 text-brand-800"></i>
+                                Deep Thought (연쇄적 생각)
+                            </h3>
+                            <p class="text-xs font-light text-brand-600 leading-relaxed">
+                                RYIC 4B는 단순 질문 답변을 넘어, **한국어 어순과 문맥에 특화된 연쇄적 사고(Chain-of-Thought)** 프로세스를 적용하여 복잡한 수리/논리 문제도 단계별로 완벽히 풀어냅니다.
+                            </p>
+                        </div>
+
+                        <div class="bg-brand-50/80 p-4 rounded-xl border border-brand-100 font-mono text-xs space-y-2">
+                            <div class="text-brand-400 text-[11px]">// 한국어 논리 추론 예시</div>
+                            <div class="text-brand-950 font-sans text-xs">"조건: A는 B보다 크고, B는 C의 절반이다. C가 10일 때 A의 최소값은?"</div>
+                            <div class="text-emerald-700 pt-1 font-sans text-xs flex items-start gap-1.5">
+                                <i data-lucide="check-circle-2" class="w-4 h-4 shrink-0 mt-0.5"></i>
+                                <span>생각 과정: C=10 → B=5 → A > 5 이므로 정수일 경우 A ≥ 6</span>
+                            </div>
+                        </div>
+
+                        <div class="text-[11px] font-light text-brand-400">
+                            * 4B 파라미터 경량화 모델 중 최고 수준의 한국어 벤치마크 점수 달성.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CARD 3: MODEL SPECIFICATIONS GRID -->
+        <section class="stack-card" id="card-2" style="z-index: 30;">
+            <div class="max-w-6xl mx-auto w-full z-10">
+                <div class="text-center max-w-2xl mx-auto mb-12 animate-element">
+                    <span class="text-[11px] font-light text-brand-400 uppercase tracking-widest mb-1 block">Tier 03</span>
+                    <h2 class="text-3xl sm:text-5xl font-extralight text-brand-950 tracking-tight">RYIC 4B 모델 스펙</h2>
+                    <p class="text-sm font-light text-brand-500 mt-2">가장 실용적인 40억 파라미터 구조로 메모리 부담을 혁신적으로 줄였습니다.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="glass-card-3d p-8 rounded-2xl animate-element">
+                        <div class="w-10 h-10 rounded-full border border-brand-200 flex items-center justify-center text-brand-900 mb-6 bg-white shadow-sm">
+                            <i data-lucide="layers" class="w-4 h-4"></i>
+                        </div>
+                        <h3 class="text-lg font-light text-brand-950 mb-2">4B 초경량 구조</h3>
+                        <p class="text-xs font-light text-brand-500 leading-relaxed">4GB VRAM 이상의 일반 PC 환경 및 로컬 디바이스에서도 지연 없이 원활한 구동이 가능합니다.</p>
+                    </div>
+
+                    <div class="glass-card-3d p-8 rounded-2xl animate-element">
+                        <div class="w-10 h-10 rounded-full border border-brand-200 flex items-center justify-center text-brand-900 mb-6 bg-white shadow-sm">
+                            <i data-lucide="terminal" class="w-4 h-4"></i>
+                        </div>
+                        <h3 class="text-lg font-light text-brand-950 mb-2">PowerShell 네이티브</h3>
+                        <p class="text-xs font-light text-brand-500 leading-relaxed">복잡한 Python 환경 설정이나 Docker 설치 없이 PowerShell 커맨드 하나로 구동 및 CLI 상호작용이 가능합니다.</p>
+                    </div>
+
+                    <div class="glass-card-3d p-8 rounded-2xl animate-element">
+                        <div class="w-10 h-10 rounded-full border border-brand-200 flex items-center justify-center text-brand-900 mb-6 bg-white shadow-sm">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        </div>
+                        <h3 class="text-lg font-light text-brand-950 mb-2">한국어 특화 추론</h3>
+                        <p class="text-xs font-light text-brand-500 leading-relaxed">한국어 자연어 이해, 정교한 요약, 코딩 파이프라인 생성 및 복잡한 논리 문제를 신속하게 처리합니다.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CARD 4: POWERSHELL INTERACTIVE SIMULATOR -->
+        <section class="stack-card" id="card-3" style="z-index: 40;">
+            <div class="max-w-6xl mx-auto w-full z-10">
+                <div class="text-center max-w-2xl mx-auto mb-8 animate-element">
+                    <span class="text-[11px] font-light text-brand-400 uppercase tracking-widest mb-1 block">Tier 04</span>
+                    <h2 class="text-3xl sm:text-4xl font-extralight text-brand-950 tracking-tight">PowerShell 라이브 플레이그라운드</h2>
+                    <p class="text-xs font-light text-brand-500 mt-1">Windows PowerShell 환경에서 직접 프롬프트를 테스트해 보세요.</p>
+                </div>
+
+                <div class="glass-card-3d rounded-2xl p-6 bg-white grid grid-cols-1 lg:grid-cols-12 gap-8 shadow-sm animate-element">
+                    <div class="lg:col-span-4 space-y-6 border-b lg:border-b-0 lg:border-r border-brand-100 pb-6 lg:pb-0 lg:pr-8">
+                        <div>
+                            <label class="text-xs font-light text-brand-600 block mb-2">추론 옵션 (Reasoning Mode)</label>
+                            <select id="sim-mode" class="w-full bg-brand-50 border border-brand-200 rounded-xl px-4 py-3 text-xs font-light text-brand-900 focus:outline-none">
+                                <option value="reasoning">RYIC 4B - 깊은 사고 (Deep Logic)</option>
+                                <option value="fast">RYIC 4B - 초고속 응답 (Fast Token)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs font-light text-brand-600 mb-2">
+                                <span>생성 창의성 (Temperature)</span>
+                                <span id="temp-val" class="font-mono text-brand-950">0.20</span>
+                            </div>
+                            <input type="range" min="0" max="1" step="0.05" value="0.20" oninput="document.getElementById('temp-val').innerText = this.value" class="w-full accent-brand-950">
+                        </div>
+
+                        <button onclick="runSimulation()" class="magnetic-element w-full py-3.5 bg-brand-950 text-white rounded-xl text-xs font-light tracking-wider uppercase hover:bg-brand-800 transition-all flex items-center justify-center gap-2 shadow-md">
+                            <span>PowerShell 추론 실행</span>
+                            <i data-lucide="play" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        </button>
+                    </div>
+
+                    <div class="lg:col-span-8 flex flex-col justify-between h-[320px]">
+                        <div class="font-mono text-xs text-brand-800 space-y-3">
+                            <div class="text-brand-400 text-[11px] font-sans flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                                <span>PS C:\Users\RYIC-AI&gt; ryic run 4b</span>
+                            </div>
+                            <div class="flex gap-2 items-center">
+                                <span class="text-brand-400">&gt;</span>
+                                <input type="text" id="prompt-input" value="PowerShell 명령어로 4B 모델을 불러온 뒤 한국어로 연쇄 추론을 실행해줘" class="w-full bg-brand-50 border border-brand-200 rounded-xl p-2.5 text-brand-950 font-sans font-light text-xs focus:outline-none" />
+                            </div>
+                            <div id="sim-output" class="text-brand-700 font-light font-sans text-xs leading-relaxed p-4 bg-brand-950 text-brand-100 rounded-xl border border-brand-800 h-[170px] overflow-y-auto term-scroll">
+                                [PowerShell 준비 완료] 위의 실행 버튼을 눌러 4B 한국어 추론 결과를 확인하세요.
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-brand-100 flex items-center justify-between text-xs font-mono text-brand-400">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span id="sim-status">PowerShell CLI 상태: 대기 중</span>
+                            </div>
+                            <div id="sim-time" class="text-brand-950 font-medium">응답 속도: 0.00s</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CARD 5: POWERSHELL INSTALLATION & FOOTER -->
+        <section class="stack-card dark-card" id="card-4" style="z-index: 50;">
+            <div class="max-w-5xl mx-auto w-full space-y-10 z-10 pt-8">
+                <div class="text-center animate-element">
+                    <span class="text-[11px] font-light text-brand-400 uppercase tracking-widest mb-1 block">Tier 05</span>
+                    <h2 class="text-3xl sm:text-4xl font-extralight text-white tracking-tight">PowerShell 한 줄 설치하기</h2>
+                    <p class="text-xs font-light text-brand-400 mt-1">추가 의존성 라이브러리 없이 터미널에서 즉시 시작할 수 있습니다.</p>
+                </div>
+
+                <div class="glass-card-3d rounded-2xl p-6 font-mono text-xs shadow-2xl animate-element">
+                    <div class="flex items-center justify-between border-b border-brand-800 pb-3 mb-4">
+                        <div class="flex gap-4 text-brand-400 text-xs">
+                            <span class="text-white border-b border-white pb-1">Windows PowerShell</span>
+                            <span>CMD</span>
+                            <span>Bash</span>
+                        </div>
+                        <button onclick="copyCommand()" class="text-brand-400 hover:text-white transition-colors flex items-center gap-1.5 text-[11px]">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            <span id="copy-text">명령어 복사</span>
+                        </button>
+                    </div>
+
+                    <pre class="text-brand-200 font-light leading-relaxed whitespace-pre-wrap">
+<span class="text-brand-500"># PowerShell에서 RYIC 4B 한국어 원클릭 설치 및 구동</span>
+<span class="text-purple-300">iwr</span> -useb https://ryic.ai/install.ps1 | <span class="text-purple-300">iex</span>
+
+<span class="text-brand-500"># 4B 한국어 추론 엔진 실행</span>
+<span class="text-emerald-300">ryic</span> run 4b --lang kr --think
+                    </pre>
+                </div>
+
+                <div class="border-t border-brand-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-xs font-light text-brand-400 animate-element">
+                    <div class="flex items-center gap-3">
+                        <span class="w-2 h-2 rounded-full bg-white"></span>
+                        <span class="text-white">ryic ai</span>
+                        <span>• 4B 한국어 추론 프레임워크</span>
+                    </div>
+                    <div class="flex gap-6 text-brand-400">
+                        <a href="#" class="hover:text-white transition-colors">문서 가이드</a>
+                        <a href="#" class="hover:text-white transition-colors">PowerShell SDK</a>
+                        <a href="#" class="hover:text-white transition-colors">깃허브</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Card Stacking Layered Overlay + Auto Glide Controller
+        let currentCard = 0;
+        const totalCards = 5;
+        let isAnimating = false;
+
+        const cards = [];
+        for (let i = 0; i < totalCards; i++) {
+            cards.push(document.getElementById(`card-${i}`));
+        }
+
+        // Initialize Card Positions
+        function initCardStack() {
+            cards.forEach((card, i) => {
+                if (i === 0) {
+                    gsap.set(card, { yPercent: 0, scale: 1, opacity: 1, filter: "blur(0px)" });
+                } else {
+                    gsap.set(card, { yPercent: 100, scale: 1, opacity: 1, filter: "blur(0px)" });
+                }
+            });
+        }
+        initCardStack();
+
+        function navigateToCard(targetIndex) {
+            if (targetIndex < 0 || targetIndex >= totalCards || targetIndex === currentCard || isAnimating) return;
+            isAnimating = true;
+
+            const isMovingForward = targetIndex > currentCard;
+            const timeline = gsap.timeline({
+                onComplete: () => {
+                    currentCard = targetIndex;
+                    isAnimating = false;
+                    updateHeaderStyle();
+                }
+            });
+
+            // Update Navigation Dots
+            for (let i = 0; i < totalCards; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if (dot) {
+                    if (i === targetIndex) dot.classList.add('active');
+                    else dot.classList.remove('active');
+                }
+            }
+
+            if (isMovingForward) {
+                for (let i = currentCard; i < targetIndex; i++) {
+                    const nextCard = cards[i + 1];
+                    const currCard = cards[i];
+
+                    // Current card scales down, dims, and blurs
+                    timeline.to(currCard, {
+                        scale: 0.93,
+                        opacity: 0.5,
+                        filter: "blur(8px)",
+                        duration: 0.9,
+                        ease: "power3.inOut"
+                    }, 0);
+
+                    // Next card glides up over current card
+                    timeline.to(nextCard, {
+                        yPercent: 0,
+                        duration: 0.9,
+                        ease: "power3.inOut"
+                    }, 0);
+
+                    animateCardElements(i + 1, timeline, 0.3);
+                }
+            } else {
+                for (let i = currentCard; i > targetIndex; i--) {
+                    const prevCard = cards[i - 1];
+                    const currCard = cards[i];
+
+                    timeline.to(currCard, {
+                        yPercent: 100,
+                        duration: 0.9,
+                        ease: "power3.inOut"
+                    }, 0);
+
+                    timeline.to(prevCard, {
+                        scale: 1,
+                        opacity: 1,
+                        filter: "blur(0px)",
+                        duration: 0.9,
+                        ease: "power3.inOut"
+                    }, 0);
+                }
+            }
+        }
+
+        function animateCardElements(cardIndex, timeline, positionOffset = 0) {
+            const card = cards[cardIndex];
+            if (!card) return;
+            const elements = card.querySelectorAll('.animate-element');
+            timeline.fromTo(elements, 
+                { y: 35, opacity: 0 }, 
+                { y: 0, opacity: 1, duration: 0.7, stagger: 0.08, ease: "power2.out" },
+                positionOffset
+            );
+        }
+
+        function updateHeaderStyle() {
+            const logo = document.getElementById('header-logo');
+            const dotContainer = document.getElementById('nav-dot-container');
+            const nav = document.getElementById('header-nav');
+            const btn = document.getElementById('header-btn');
+
+            if (currentCard === 4) { // Dark theme final card
+                logo.className = "flex items-center gap-2.5 text-white transition-colors duration-500 magnetic-element";
+                nav.className = "hidden md:flex items-center gap-8 text-xs font-light text-brand-400 transition-colors duration-500";
+                btn.className = "magnetic-element px-5 py-2.5 rounded-full border border-brand-800 text-white text-xs font-light hover:bg-white hover:text-brand-950 transition-all bg-brand-900/80 backdrop-blur-md shadow-sm";
+                dotContainer.classList.add('dark-active');
+            } else {
+                logo.className = "flex items-center gap-2.5 text-brand-950 transition-colors duration-500 magnetic-element";
+                nav.className = "hidden md:flex items-center gap-8 text-xs font-light text-brand-600 transition-colors duration-500";
+                btn.className = "magnetic-element px-5 py-2.5 rounded-full border border-brand-200 text-brand-950 text-xs font-light hover:bg-brand-950 hover:text-white transition-all bg-white/80 backdrop-blur-md shadow-sm";
+                dotContainer.classList.remove('dark-active');
+            }
+        }
+
+        // Auto-Glide Trigger on Wheel / Touch Gestures
+        let wheelDeltaSum = 0;
+        let wheelTimeout;
+
+        window.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (isAnimating) return;
+
+            wheelDeltaSum += e.deltaY;
+
+            clearTimeout(wheelTimeout);
+            wheelTimeout = setTimeout(() => {
+                if (Math.abs(wheelDeltaSum) > 15) {
+                    if (wheelDeltaSum > 0) {
+                        navigateToCard(currentCard + 1);
+                    } else {
+                        navigateToCard(currentCard - 1);
+                    }
+                }
+                wheelDeltaSum = 0;
+            }, 30);
+        }, { passive: false });
+
+        let touchStartY = 0;
+        window.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        window.addEventListener('touchend', (e) => {
+            if (isAnimating) return;
+            const touchEndY = e.changedTouches[0].clientY;
+            const diff = touchStartY - touchEndY;
+
+            if (Math.abs(diff) > 25) {
+                if (diff > 0) {
+                    navigateToCard(currentCard + 1);
+                } else {
+                    navigateToCard(currentCard - 1);
+                }
+            }
+        }, { passive: true });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+                navigateToCard(currentCard + 1);
+            } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+                navigateToCard(currentCard - 1);
+            }
+        });
+
+        gsap.fromTo("#card-0 .animate-element", 
+            { y: 35, opacity: 0 }, 
+            { y: 0, opacity: 1, duration: 0.8, stagger: 0.1, ease: "power2.out", delay: 0.2 }
+        );
+
+        // Custom Cursor Follower
+        const cursor = document.getElementById('custom-cursor');
+        const cursorDot = document.getElementById('custom-cursor-dot');
+        let mouseX = 0, mouseY = 0;
+        let cursorX = 0, cursorY = 0;
+
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            cursorDot.style.transform = `translate(${mouseX}px, ${mouseY}px)`;
+        });
+
+        function animateCursor() {
+            cursorX += (mouseX - cursorX) * 0.15;
+            cursorY += (mouseY - cursorY) * 0.15;
+            cursor.style.transform = `translate(${cursorX - 13}px, ${cursorY - 13}px)`;
+            requestAnimationFrame(animateCursor);
+        }
+        animateCursor();
+
+        // Magnetic Elements
+        document.querySelectorAll('.magnetic-element').forEach(btn => {
+            btn.addEventListener('mousemove', (e) => {
+                const rect = btn.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                btn.style.transform = `translate(${x * 0.25}px, ${y * 0.25}px)`;
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.transform = 'translate(0px, 0px)';
+            });
+        });
+
+        const orbContainer = document.getElementById('three-orb-container');
+        if (orbContainer) {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(45, orbContainer.clientWidth / orbContainer.clientHeight, 0.1, 1000);
+            camera.position.z = 4.2;
+
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(orbContainer.clientWidth, orbContainer.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            orbContainer.appendChild(renderer.domElement);
+
+            const geometry = new THREE.IcosahedronGeometry(1.5, 3);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x09090b,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.18
+            });
+            const orbMesh = new THREE.Mesh(geometry, material);
+            scene.add(orbMesh);
+
+            function animateOrb() {
+                requestAnimationFrame(animateOrb);
+                orbMesh.rotation.y += 0.003;
+                orbMesh.rotation.x += 0.001;
+                renderer.render(scene, camera);
+            }
+            animateOrb();
+        }
+
+        const nodeCanvas = document.getElementById('node-canvas');
+        const nodeCtx = nodeCanvas.getContext('2d');
+        let graphNodes = [];
+
+        function initNodes() {
+            const rect = nodeCanvas.parentElement.getBoundingClientRect();
+            nodeCanvas.width = rect.width;
+            nodeCanvas.height = rect.height;
+
+            graphNodes = [];
+            for (let i = 0; i < 30; i++) {
+                graphNodes.push({
+                    x: Math.random() * nodeCanvas.width,
+                    y: Math.random() * nodeCanvas.height,
+                    vx: (Math.random() - 0.5) * 0.6,
+                    vy: (Math.random() - 0.5) * 0.6,
+                    pulse: 0
+                });
+            }
+        }
+        initNodes();
+        window.addEventListener('resize', initNodes);
+
+        function triggerNodePulse() {
+            graphNodes.forEach(n => n.pulse = 1.0);
+        }
+
+        function drawNodes() {
+            nodeCtx.clearRect(0, 0, nodeCanvas.width, nodeCanvas.height);
+
+            graphNodes.forEach((n, i) => {
+                n.x += n.vx;
+                n.y += n.vy;
+
+                if (n.x < 0 || n.x > nodeCanvas.width) n.vx *= -1;
+                if (n.y < 0 || n.y > nodeCanvas.height) n.vy *= -1;
+                if (n.pulse > 0) n.pulse -= 0.02;
+
+                nodeCtx.beginPath();
+                nodeCtx.arc(n.x, n.y, 3 + n.pulse * 4, 0, Math.PI * 2);
+                nodeCtx.fillStyle = n.pulse > 0 ? '#10b981' : '#09090b';
+                nodeCtx.fill();
+
+                for (let j = i + 1; j < graphNodes.length; j++) {
+                    const n2 = graphNodes[j];
+                    const dist = Math.hypot(n.x - n2.x, n.y - n2.y);
+                    if (dist < 110) {
+                        nodeCtx.beginPath();
+                        nodeCtx.moveTo(n.x, n.y);
+                        nodeCtx.lineTo(n2.x, n2.y);
+                        nodeCtx.strokeStyle = n.pulse > 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(9, 9, 11, 0.06)';
+                        nodeCtx.stroke();
+                    }
+                }
+            });
+            requestAnimationFrame(drawNodes);
+        }
+        drawNodes();
+
+        function runSimulation() {
+            const prompt = document.getElementById('prompt-input').value;
+            const output = document.getElementById('sim-output');
+            const timeEl = document.getElementById('sim-time');
+            const statusEl = document.getElementById('sim-status');
+
+            statusEl.innerText = "PowerShell 실행 중...";
+            output.innerText = "[PS Execution] ryic-kernel-4b 로딩 중...\n>> 한국어 토크나이저 활성화 (Vocab: 128,000)...";
+
+            const start = performance.now();
+            setTimeout(() => {
+                const elapsed = ((performance.now() - start) / 1000).toFixed(2);
+                output.innerText = `[PS C:\\Users\\RYIC-AI> ryic run 4b]\n\n입력 질문: "${prompt}"\n\n[생각의 과정 (Chain-of-Thought)]\n1. 한국어 질의 구조 분석 및 4B 파라미터 텐서 연산 진행.\n2. PowerShell 로컬 환경 메모리 직접 할당 완료.\n\n[최종 추론 답변]: RYIC 4B 모델은 PowerShell 터미널 환경에서 가볍게 구동되며, 40억 파라미터 기반으로 한국어 논리 추론을 손쉽게 수행합니다!`;
+                timeEl.innerText = `응답 속도: ${elapsed}s`;
+                statusEl.innerText = "PowerShell CLI 상태: 완료";
+                triggerNodePulse();
+            }, 450);
+        }
+
+        function copyCommand() {
+            const cmd = "iwr -useb https://ryic.ai/install.ps1 | iex";
+            const copyText = document.getElementById('copy-text');
+            
+            const tempInput = document.createElement('textarea');
+            tempInput.value = cmd;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            copyText.innerText = "복사 완료!";
+            setTimeout(() => {
+                copyText.innerText = "명령어 복사";
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
